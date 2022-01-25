@@ -59,21 +59,50 @@ group by player_name
 having sum(goal_score)> 0;
 
 /*14. Write a SQL query to find referees and the number of bookings they made for the entire tournament. Sort your answer by the number of bookings in descending order.*/
-SELECT referee_name,count(booking_time) as 'no of bookings' FROM euro_cup_2016.referee_mast rm join
+SELECT referee_name, sum(noofbookings) as totalnumber FROM euro_cup_2016.referee_mast rm join
 euro_cup_2016.match_mast mm  on rm.referee_id = mm.referee_id
-join euro_cup_2016.player_booked pb on mm.match_no = pb.match_no
+join (SELECT match_no,count(booking_time)  as 'noofbookings' FROM euro_cup_2016.player_booked
+group by match_no
+order by player_id) pb on mm.match_no = pb.match_no
 group by referee_name 
-order by count(booking_time) desc;
+order by totalnumber desc;
 /*15. Write a SQL query to find the referees who booked the most number of players.*/
-SELECT referee_name,player_id,booking_time as 'no of bookings' FROM euro_cup_2016.referee_mast rm join
-euro_cup_2016.match_mast mm  on rm.referee_id = mm.referee_id
-join euro_cup_2016.player_booked pb on mm.match_no = pb.match_no
-order by referee_name,booking_time
-/*group by  referee_name,player_id,booking_time 
-order by count(booking_time) desc*/
+SELECT  referee_name,sum(noofplayersbooked) as totalno
+FROM euro_cup_2016.referee_mast rm join euro_cup_2016.match_mast mm 
+on rm.referee_id = mm.referee_id
+join (SELECT match_no,count(player_id)   as 'noofplayersbooked'  FROM euro_cup_2016.player_booked
+group by match_no
+order by player_id) pb on mm.match_no = pb.match_no
+group by referee_name
+order by totalno desc;
 
 /* 16. Write a SQL query to find referees and the number of matches they worked in each venue.*/
+
+select referee_name,venue_name,count(match_no) as totalmatches  from 
+(select referee_name,mm.match_no,sv.venue_name
+,row_number() over(partition by mm.venue_id order by  mm.venue_id ) as contm
+FROM euro_cup_2016.referee_mast rm join euro_cup_2016.match_mast mm 
+on rm.referee_id = mm.referee_id
+join euro_cup_2016.soccer_venue  sv on mm.venue_id = sv.venue_id
+order by referee_name)v
+group by referee_name,venue_name;
+
 /*17. Write a SQL query to find the country where the most assistant referees come from,and the count of the assistant referees.*/
+with cte as 
+(SELECT distinct ass_ref_name,rm.country_id,country_name 
+,row_number() over (partition by country_id order by country_id) as countre
+FROM euro_cup_2016.asst_referee_mast rm
+join euro_cup_2016.soccer_country   sc  on rm.country_id = sc.country_id
+order by country_name)
+select country_name,countre as maxreferees
+from cte where countre = (select max(countre) from cte);
 /*18. Write a SQL query to find the highest number of foul cards given in one match.*/
 /*19. Write a SQL query to find the number of captains who were also goalkeepers.*/
+SELECT count(distinct player_id) as 'number of capatians as GK' FROM euro_cup_2016.match_captain mc
+join euro_cup_2016.player_mast md  on mc.player_captain = md.player_id
+where posi_to_play = 'GK'
+order by player_id;
 /*20. Write a SQL query to find the substitute players who came into the field in the firsthalf of play, within a normal play schedule*/
+SELECT distinct player_name as 'substitute player' FROM euro_cup_2016.player_in_out pio
+join euro_cup_2016.player_mast pm on pio.player_id = pm.player_id
+where  in_out = 'I' and play_half = 1 and play_schedule ='NT';
